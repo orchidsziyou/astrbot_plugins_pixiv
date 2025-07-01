@@ -1,5 +1,6 @@
 import json
 import os
+import re
 from datetime import datetime
 
 import cv2
@@ -48,6 +49,14 @@ def save_access_token():
     print("Tokens have been saved to 'tokens.json'.")
 
 
+def get_id_from_text(str):
+    num_list = re.findall(r'\d+', str)
+    result_number = ""
+    for i in range(len(num_list)):
+        result_number += num_list[i]
+    return result_number
+
+
 @register("pixiv", "orchidsziyou", "一个简单的 pixiv 插件", "1.0.0")
 class MyPlugin(Star):
     def __init__(self, context: Context):
@@ -80,6 +89,10 @@ class MyPlugin(Star):
         api.set_auth(access_token, refresh_token)
 
         R18Tag = False
+
+        if len(id) >= 15:
+            id = str(get_id_from_text(id))
+            print(id)
 
         try:
             json_result = api.illust_detail(id)
@@ -120,8 +133,6 @@ class MyPlugin(Star):
             rotated_img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
             # 覆盖原图片，直接使用原文件路径
             cv2.imwrite(file_path, rotated_img)
-
-
 
         botid = event.get_self_id()
         from astrbot.api.message_components import Node, Plain, Image
