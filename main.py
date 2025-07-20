@@ -72,7 +72,7 @@ def get_id_from_text(str):
     return result_number
 
 
-@register("pixiv", "orchidsziyou", "一个简单的 pixiv 插件", "1.0.0")
+@register("pixiv", "orchidsziyou", "一个用于查看pixiv插画预览图得插件", "1.0.0")
 class MyPlugin(Star):
     def __init__(self, context: Context):
         super().__init__(context)
