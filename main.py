@@ -128,11 +128,23 @@ class MyPlugin(Star):
         if R18Tag:
             # 打开图片
             file_path = "./data/plugins/astrbot_plugins_pixiv/test.jpg"
-            img = cv2.imread(file_path)
-            # 执行旋转 90 度，使横向变为竖向
-            rotated_img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-            # 覆盖原图片，直接使用原文件路径
-            cv2.imwrite(file_path, rotated_img)
+            # img = cv2.imread(file_path)
+            # # 插入白图防止被gank
+            # rotated_img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+            # # 覆盖原图片，直接使用原文件路径
+            # cv2.imwrite(file_path, rotated_img)
+
+            from PIL import Image as ProcessImage
+
+            original_image = ProcessImage.open(file_path)
+            # 获取原始图片的宽度和高度
+            width, height = original_image.size
+            # 创建一张新的空白图片，大小为原图的宽度和五倍高度
+            new_image = ProcessImage.new('RGB', (width, height * 3), color=(255, 255, 255))
+            # 将原图粘贴到新图片的下半部分
+            new_image.paste(original_image, (0, height * 2))
+            # 保存最终结果
+            new_image.save(file_path)
 
         botid = event.get_self_id()
         from astrbot.api.message_components import Node, Plain, Image
@@ -159,10 +171,14 @@ class MyPlugin(Star):
         resNode = Nodes(
             nodes=[node, picture_node]
         )
-        if mark:
-            yield event.chain_result([resNode])
-        else:
-            yield event.chain_result([node])
+
+        try:
+            if mark:
+                yield event.chain_result([resNode])
+            else:
+                yield event.chain_result([node])
+        except:
+            yield event.plain_result("发送失败")
 
     @filter.permission_type(PermissionType.ADMIN)
     @pixiv_group.command("promote")
