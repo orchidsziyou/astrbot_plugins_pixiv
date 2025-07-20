@@ -21,17 +21,32 @@ white_list_path = "./data/plugins/astrbot_plugins_pixiv/white_list.json"
 
 def get_access_token():
     global access_token, refresh_token, white_list_group, white_list_user
+
     # 读取token数据
+    if not os.path.exists('./data/plugins/astrbot_plugins_pixiv/tokens.json'):
+        access_token = ""
+        refresh_token = ""
+        return
     with open('./data/plugins/astrbot_plugins_pixiv/tokens.json', 'r') as json_file:
         tokens = json.load(json_file)
 
     access_token = tokens["access_token"]
     refresh_token = tokens["refresh_token"]
 
-    with open(white_list_path, 'r') as file:
-        data = json.load(file)
-        white_list_group = data["groupIDs"]
-        white_list_user = data["userIDs"]
+    if os.path.exists(white_list_path):
+        with open(white_list_path, 'r') as file:
+            data = json.load(file)
+            white_list_group = data["groupIDs"]
+            white_list_user = data["userIDs"]
+    else:
+        white_list_group = []
+        white_list_user = []
+        with open(white_list_path, 'w') as file:
+            data = {
+                "groupIDs": white_list_group,
+                "userIDs": white_list_user,
+            }
+            json.dump(data, file)
 
 
 def save_access_token():
