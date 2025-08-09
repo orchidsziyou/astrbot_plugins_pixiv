@@ -18,6 +18,9 @@ access_token = ""
 refresh_token = ""
 white_list_path = "./data/plugins/astrbot_plugins_pixiv/white_list.json"
 
+#最大图片发送量
+max_image=10
+
 
 def get_access_token():
     global access_token, refresh_token, white_list_group, white_list_user
@@ -82,6 +85,10 @@ class MyPlugin(Star):
         save_access_token()
         last_refresh_time = int(datetime.now().timestamp())
 
+        #创建文件夹存放图片
+        if not os.path.exists("./data/plugins/astrbot_plugins_pixiv/pic"):
+            os.makedirs("./data/plugins/astrbot_plugins_pixiv/pic")
+
     async def initialize(self):
         """可选择实现异步的插件初始化方法，当实例化该插件类之后会自动调用该方法。"""
 
@@ -92,7 +99,7 @@ class MyPlugin(Star):
     @pixiv_group.command("d")
     async def pixiv_download(self, event: AstrMessageEvent, id: str) -> MessageEventResult:
         """下载插画"""
-        global access_token, refresh_token, last_refresh_time
+        global access_token, refresh_token, last_refresh_time,max_image
         Current_Picture_time = int(datetime.now().timestamp())
         time_diff_in_seconds = Current_Picture_time - last_refresh_time
         if time_diff_in_seconds > 3000:
@@ -109,12 +116,26 @@ class MyPlugin(Star):
             id = str(get_id_from_text(id))
             print(id)
 
+        yield event.plain_result("已收到请求")
+
         try:
             json_result = api.illust_detail(id)
             illust = json_result.illust
             title = illust.title
             taglist = illust.tags
+
             # print(illust)
+            meta_pages=illust.meta_pages
+            piccount=len(meta_pages)
+            urls_list=[]
+            for i in range(min(piccount, max_image)):
+                print(meta_pages[i].image_urls.large)
+                urls_list.append(meta_pages[i].image_urls.large)
+
+            #检查这个list里面是否有url
+            if len(urls_list) == 0:
+                urls_list.append(illust.image_urls.large)
+
             author = illust.user.name
 
             tagstr = ""
@@ -123,9 +144,16 @@ class MyPlugin(Star):
                     R18Tag = True
                     # print("R18Tag")
                 tagstr += tag.name + " "
-            if os.path.exists("./data/plugins/astrbot_plugins_pixiv/test.jpg"):
-                os.remove("./data/plugins/astrbot_plugins_pixiv/test.jpg")
-            api.download(illust.image_urls.large, fname="./data/plugins/astrbot_plugins_pixiv/test.jpg")
+
+            # 分别下载urls_list中的图片
+            for i in range(len(urls_list)):
+                if os.path.exists(f"./data/plugins/astrbot_plugins_pixiv/pic/test{i}.jpg"):
+                    os.remove(f"./data/plugins/astrbot_plugins_pixiv/pic/test{i}.jpg")
+                api.download(urls_list[i], fname=f"./data/plugins/astrbot_plugins_pixiv/pic/test{i}.jpg")
+
+            # if os.path.exists("./data/plugins/astrbot_plugins_pixiv/test.jpg"):
+            #     os.remove("./data/plugins/astrbot_plugins_pixiv/test.jpg")
+            # api.download(illust.image_urls.large, fname="./data/plugins/astrbot_plugins_pixiv/test.jpg")
         except Exception as e:
             print(e)
             yield event.plain_result("下载失败")
@@ -142,24 +170,39 @@ class MyPlugin(Star):
 
         if R18Tag:
             # 打开图片
-            file_path = "./data/plugins/astrbot_plugins_pixiv/test.jpg"
-            # img = cv2.imread(file_path)
-            # # 插入白图防止被gank
-            # rotated_img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
-            # # 覆盖原图片，直接使用原文件路径
-            # cv2.imwrite(file_path, rotated_img)
+            # file_path = "./data/plugins/astrbot_plugins_pixiv/pic/test0.jpg"
+            # # img = cv2.imread(file_path)
+            # # # 插入白图防止被gank
+            # # rotated_img = cv2.rotate(img, cv2.ROTATE_90_CLOCKWISE)
+            # # # 覆盖原图片，直接使用原文件路径
+            # # cv2.imwrite(file_path, rotated_img)
+            #
+            # from PIL import Image as ProcessImage
+            #
+            # original_image = ProcessImage.open(file_path)
+            # # 获取原始图片的宽度和高度
+            # width, height = original_image.size
+            # # 创建一张新的空白图片，大小为原图的宽度和五倍高度
+            # new_image = ProcessImage.new('RGB', (width, height * 3), color=(255, 255, 255))
+            # # 将原图粘贴到新图片的下半部分
+            # new_image.paste(original_image, (0, height * 2))
+            # # 保存最终结果
+            # new_image.save(file_path)
 
-            from PIL import Image as ProcessImage
+            #批量整理图片
+            for i in range(len(urls_list)):
+                file_path = f"./data/plugins/astrbot_plugins_pixiv/pic/test{i}.jpg"
+                from PIL import Image as ProcessImage
+                original_image = ProcessImage.open(file_path)
+                # 获取原始图片的宽度和高度
+                width, height = original_image.size
+                # 创建一张新的空白图片，大小为原图的宽度和五倍高度
+                new_image = ProcessImage.new('RGB', (width, height * 4), color=(255, 255, 255))
+                # 将原图粘贴到新图片的下半部分
+                new_image.paste(original_image, (0, height * 3))
+                # 保存最终结果
+                new_image.save(file_path)
 
-            original_image = ProcessImage.open(file_path)
-            # 获取原始图片的宽度和高度
-            width, height = original_image.size
-            # 创建一张新的空白图片，大小为原图的宽度和五倍高度
-            new_image = ProcessImage.new('RGB', (width, height * 3), color=(255, 255, 255))
-            # 将原图粘贴到新图片的下半部分
-            new_image.paste(original_image, (0, height * 2))
-            # 保存最终结果
-            new_image.save(file_path)
 
         botid = event.get_self_id()
         from astrbot.api.message_components import Node, Plain, Image
@@ -172,19 +215,33 @@ class MyPlugin(Star):
                 Plain("标题:" + title + '\n'),
                 Plain("作者:" + author + '\n'),
                 Plain("Tag:" + tagstr + '\n'),
-                Plain("若有多张图，只会下载第一张\n")
+                Plain("若有多张图，最多只会下载" + str(max_image) + "张\n")
             ]
         )
-        picture_node = Node(
-            uin=botid,
-            name="仙人",
-            content=
-            [
-                Image.fromFileSystem("./data/plugins/astrbot_plugins_pixiv/test.jpg")
-            ]
-        )
+        all_nodes=[]
+        all_nodes.append(node)
+        for i in range(len(urls_list)):
+            picture_node = Node(
+                uin=botid,
+                name="仙人",
+                content=
+                [
+                    Image.fromFileSystem(f"./data/plugins/astrbot_plugins_pixiv/pic/test{i}.jpg")
+                ]
+            )
+            all_nodes.append(picture_node)
+
+        # picture_node = Node(
+        #     uin=botid,
+        #     name="仙人",
+        #     content=
+        #     [
+        #         Image.fromFileSystem("./data/plugins/astrbot_plugins_pixiv/pic/test0.jpg")
+        #     ]
+        # )
+
         resNode = Nodes(
-            nodes=[node, picture_node]
+            nodes=all_nodes
         )
 
         try:
@@ -255,3 +312,19 @@ class MyPlugin(Star):
                 yield event.plain_result("该用户已成功撤销白名单")
             else:
                 yield event.plain_result("该用户不在白名单中")
+
+
+    @filter.permission_type(PermissionType.ADMIN)
+    @pixiv_group.command("set")
+    async def pixv_set_command(self, event: AstrMessageEvent, max_num: str):
+        ''' 设置最大图片数量 '''
+        global max_image
+        try:
+            set_num = int(max_num)
+            if set_num > 0:
+                max_image = set_num
+                yield event.plain_result("设置成功，现在最多只会下载" + str(max_image) + "张")
+            else:
+                yield event.plain_result("设置失败，数量必须大于0或者必须是数字")
+        except:
+            yield event.plain_result("设置失败，数量必须大于0或者必须是数字")
